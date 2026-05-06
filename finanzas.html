@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanzas Instructor Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary: #10b981; /* Emerald */
+            --secondary: #6366f1; /* Indigo */
+            --danger: #ef4444; /* Red */
+            --warning: #f59e0b; /* Amber */
+            --bg: #0f172a; /* Dark Slate */
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            padding-bottom: 80px; /* Space for bottom nav */
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 20px;
+            background: linear-gradient(to bottom, rgba(15, 23, 42, 1), rgba(15, 23, 42, 0));
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 700; }
+
+        .container { padding: 0 15px; max-width: 800px; margin: 0 auto; }
+
+        /* Dashboard Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .summary-card .label { font-size: 0.8rem; color: var(--text-muted); }
+        .summary-card .value { font-size: 1.2rem; font-weight: 700; }
+        .summary-card.income .value { color: var(--primary); }
+        .summary-card.expense .value { color: var(--danger); }
+        .summary-card.debt .value { color: var(--warning); }
+
+        .full-card { grid-column: span 2; }
+
+        /* Sections */
+        .section { display: none; margin-top: 10px; animation: fadeIn 0.3s ease; }
+        .section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Forms */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
+        input, select, textarea {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        option {
+            background: #1e293b; /* Fondo oscuro para las opciones */
+            color: white;        /* Texto blanco */
+        }
+        input:focus, select:focus { border-color: var(--secondary); }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        button:active { transform: scale(0.98); }
+        .btn-primary { background: var(--secondary); color: white; }
+        .btn-success { background: var(--primary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        /* Tables & Lists */
+        .item-list { display: flex; flex-direction: column; gap: 10px; }
+        .item {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-info h4 { font-size: 1rem; margin-bottom: 2px; }
+        .item-info p { font-size: 0.8rem; color: var(--text-muted); }
+        .item-action { display: flex; gap: 10px; }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .badge-income { background: rgba(16, 185, 129, 0.2); color: var(--primary); }
+        .badge-expense { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+        /* Bottom Nav */
+        nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(15px);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0 20px 0;
+            z-index: 1000;
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .nav-item.active { color: var(--secondary); }
+        .nav-item i { width: 24px; height: 24px; }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 480px) {
+            .summary-grid { grid-template-columns: 1fr; }
+            .full-card { grid-column: span 1; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Finanzas Pro</h1>
+        <div id="date-display" style="font-size: 0.8rem; color: var(--text-muted);"></div>
+    </header>
+
+    <div class="container">
+        
+        <!-- DASHBOARD SECTION -->
+        <div id="section-dashboard" class="section active">
+            <div class="summary-grid">
+                <div class="card summary-card income">
+                    <span class="label">Ingresos</span>
+                    <span class="value" id="dash-income">$0</span>
+                </div>
+                <div class="card summary-card expense">
+                    <span class="label">Gastos</span>
+                    <span class="value" id="dash-expense">$0</span>
+                </div>
+                <div class="card summary-card debt full-card">
+                    <span class="label">Deudas por Cobrar</span>
+                    <span class="value" id="dash-debt">$0</span>
+                </div>
+                <div class="card summary-card full-card">
+                    <span class="label">Balance Neto (Liquidez)</span>
+                    <span class="value" id="dash-balance">$0</span>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 25px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3>📊 Reporte Mensual</h3>
+                    <input type="month" id="reportMonth" onchange="renderDashboard()" style="width: auto; padding: 5px; height: 35px;">
+                </div>
+                <div id="monthly-breakdown">
+                    <!-- Detalle por categorías -->
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 15px;">Acciones Rápidas</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="btn-success" onclick="showSection('income')"><i data-lucide="plus-circle"></i> Nuevo Ingreso</button>
+                <button class="btn-danger" onclick="showSection('expense')"><i data-lucide="minus-circle"></i> Nuevo Gasto</button>
+            </div>
+        </div>
+
+        <!-- ALUMNOS SECTION -->
+        <div id="section-students" class="section">
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>👤 Registrar Alumno</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <input type="text" id="studentName" placeholder="Nombre completo del alumno">
+                </div>
+                <button class="btn-primary" onclick="addStudent()">Agregar Alumno</button>
+            </div>
+            <h3>Lista de Alumnos</h3>
+            <div id="students-list" class="item-list" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- INGRESOS SECTION -->
+        <div id="section-income" class="section">
+            <div class="card">
+                <h3>💰 Registrar Ingreso</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Fecha</label>
+                    <input type="date" id="incDate">
+                </div>
+                <div class="form-group">
+                    <label>Alumno / Cliente</label>
+                    <select id="incStudent"></select>
+                </div>
+                <div class="form-group">
+                    <label>Valor</label>
+                    <input type="number" id="incValue" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>Detalle del Proceso</label>
+                    <select id="incDetail" onchange="toggleOther('incDetail', 'incDetailOther')">
+                        <option value="Ingreso a la academia">Ingreso a la academia</option>
+                        <option value="Clases de refuerzo">Clases de refuerzo</option>
+                        <option value="Trámites de movilidad">Trámites de movilidad</option>
+                        <option value="Otro">Otro...</option>
+                    </select>
+                    <input type="text" id="incDetailOther" placeholder="Especifique detalle" style="display:none; margin-top:10px;">
+                </div>
+                <div class="form-group">
+                    <label>Categoría / Licencia</label>
+                    <select id="incCategory" onchange="toggleOther('incCategory', 'incCategoryOther')">
+                        <option value="A2">A2 (Moto)</option>
+                        <option value="B1">B1 (Particular)</option>
+                        <option value="C1">C1 (Público)</option>
+                        <option value="C2">C2 (Público Pesado)</option>
+                        <option value="C3">C3 (Articulado)</option>
+                        <option value="A2 y B1">A2 y B1 (Combo)</option>
+                        <option value="A2 y C1">A2 y C1 (Combo)</option>
+                        <option value="Otro">Otro...</option>
+                    </select>
+                    <input type="text" id="incCategoryOther" placeholder="Especifique categoría" style="display:none; margin-top:10px;">
+                </div>
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select id="incMethod" onchange="toggleOther('incMethod', 'incMethodOther')">
+                        <option value="Efectivo">Efectivo</option>
+                        <option value="Transferencia">Transferencia</option>
+                        <option value="Otro">Otro...</option>
+                    </select>
+                    <input type="text" id="incMethodOther" placeholder="Especifique método" style="display:none; margin-top:10px;">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="incIsDebt" style="width: auto;"> ¿Es una deuda? (Pendiente por cobrar)</label>
+                </div>
+                <button class="btn-success" onclick="addIncome()">Guardar Ingreso</button>
+            </div>
+        </div>
+
+        <!-- GASTOS SECTION -->
+        <div id="section-expense" class="section">
+            <div class="card">
+                <h3>💸 Registrar Gasto</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Fecha</label>
+                    <input type="date" id="expDate">
+                </div>
+                <div class="form-group">
+                    <label>Pagado a</label>
+                    <input type="text" id="expRecipient" placeholder="Ej: Gasolinera, Arrendador...">
+                </div>
+                <div class="form-group">
+                    <label>Concepto</label>
+                    <select id="expConcept" onchange="toggleOther('expConcept', 'expConceptOther')">
+                        <option value="Pin">Pin</option>
+                        <option value="Teoría">Teoría</option>
+                        <option value="Exámenes médicos">Exámenes médicos</option>
+                        <option value="Gasolina">Gasolina</option>
+                        <option value="Arreglos vehículo">Arreglos vehículo</option>
+                        <option value="Arriendo">Arriendo</option>
+                        <option value="Servicios públicos">Servicios públicos</option>
+                        <option value="Cuota hijos">Cuota hijos</option>
+                        <option value="Cuota carro">Cuota carro</option>
+                        <option value="Mercado">Mercado</option>
+                        <option value="Salidas familia">Salidas familia</option>
+                        <option value="Créditos">Créditos</option>
+                        <option value="Otro">Otro...</option>
+                    </select>
+                    <input type="text" id="expConceptOther" placeholder="Especifique concepto" style="display:none; margin-top:10px;">
+                </div>
+                <div class="form-group">
+                    <label>Valor</label>
+                    <input type="number" id="expValue" placeholder="0">
+                </div>
+                <button class="btn-danger" onclick="addExpense()">Guardar Gasto</button>
+            </div>
+        </div>
+
+        <!-- HISTORY SECTION -->
+        <div id="section-history" class="section">
+            <div class="form-group">
+                <label>Filtrar por Alumno</label>
+                <select id="historyFilter" onchange="renderHistory()">
+                    <option value="all">Todos</option>
+                </select>
+            </div>
+            <div id="history-list" class="item-list"></div>
+        </div>
+
+    </div>
+
+    <nav>
+        <div class="nav-item active" id="nav-dashboard" onclick="showSection('dashboard')">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Resumen</span>
+        </div>
+        <div class="nav-item" id="nav-students" onclick="showSection('students')">
+            <i data-lucide="users"></i>
+            <span>Alumnos</span>
+        </div>
+        <div class="nav-item" id="nav-income" onclick="showSection('income')">
+            <i data-lucide="trending-up"></i>
+            <span>Ingresos</span>
+        </div>
+        <div class="nav-item" id="nav-expense" onclick="showSection('expense')">
+            <i data-lucide="trending-down"></i>
+            <span>Gastos</span>
+        </div>
+        <div class="nav-item" id="nav-history" onclick="showSection('history')">
+            <i data-lucide="history"></i>
+            <span>Historial</span>
+        </div>
+    </nav>
+
+    <script>
+        // DATA STATE
+        let db = {
+            students: JSON.parse(localStorage.getItem('students')) || [],
+            transactions: JSON.parse(localStorage.getItem('transactions')) || []
+        };
+
+        function saveDB() {
+            localStorage.setItem('students', JSON.stringify(db.students));
+            localStorage.setItem('transactions', JSON.stringify(db.transactions));
+            renderAll();
+        }
+
+        // NAVIGATION
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('section-' + sectionId).classList.add('active');
+            document.getElementById('nav-' + sectionId).classList.add('active');
+            
+            if (sectionId === 'history') renderHistory();
+            window.scrollTo(0, 0);
+        }
+
+        function toggleOther(selectId, otherId) {
+            const select = document.getElementById(selectId);
+            const other = document.getElementById(otherId);
+            other.style.display = select.value === 'Otro' ? 'block' : 'none';
+            if (select.value === 'Otro') other.focus();
+        }
+
+        // LOGIC: STUDENTS
+        function addStudent() {
+            const name = document.getElementById('studentName').value.trim();
+            if (!name) return alert('Ingresa un nombre');
+            db.students.push({ id: Date.now(), name: name });
+            document.getElementById('studentName').value = '';
+            saveDB();
+        }
+
+        function deleteStudent(id) {
+            if (confirm('¿Eliminar alumno? También se borrarán sus registros.')) {
+                db.students = db.students.filter(s => s.id !== id);
+                db.transactions = db.transactions.filter(t => t.studentId !== id);
+                saveDB();
+            }
+        }
+
+        // LOGIC: TRANSACTIONS
+        function addIncome() {
+            const date = document.getElementById('incDate').value;
+            const studentId = parseInt(document.getElementById('incStudent').value);
+            const value = parseFloat(document.getElementById('incValue').value);
+            
+            let detail = document.getElementById('incDetail').value;
+            if (detail === 'Otro') detail = document.getElementById('incDetailOther').value;
+            
+            let category = document.getElementById('incCategory').value;
+            if (category === 'Otro') category = document.getElementById('incCategoryOther').value;
+            
+            let method = document.getElementById('incMethod').value;
+            if (method === 'Otro') method = document.getElementById('incMethodOther').value;
+            
+            const isDebt = document.getElementById('incIsDebt').checked;
+
+            if (!date || isNaN(studentId) || isNaN(value) || !detail) return alert('Completa todos los campos');
+
+            db.transactions.push({
+                id: Date.now(),
+                type: 'income',
+                date,
+                studentId,
+                value,
+                detail,
+                category,
+                method,
+                isDebt
+            });
+
+            // Reset fields
+            document.getElementById('incValue').value = '';
+            document.getElementById('incIsDebt').checked = false;
+            showSection('dashboard');
+            saveDB();
+        }
+
+        function addExpense() {
+            const date = document.getElementById('expDate').value;
+            const recipient = document.getElementById('expRecipient').value.trim();
+            
+            let concept = document.getElementById('expConcept').value;
+            if (concept === 'Otro') concept = document.getElementById('expConceptOther').value;
+            
+            const value = parseFloat(document.getElementById('expValue').value);
+
+            if (!date || !recipient || isNaN(value) || !concept) return alert('Completa todos los campos');
+
+            db.transactions.push({
+                id: Date.now(),
+                type: 'expense',
+                date,
+                recipient,
+                concept,
+                value
+            });
+
+            document.getElementById('expRecipient').value = '';
+            document.getElementById('expValue').value = '';
+            showSection('dashboard');
+            saveDB();
+        }
+
+        function deleteTransaction(id) {
+            if (confirm('¿Eliminar este registro?')) {
+                db.transactions = db.transactions.filter(t => t.id !== id);
+                saveDB();
+            }
+        }
+
+        function payDebt(id) {
+            const trans = db.transactions.find(t => t.id === id);
+            if (trans) {
+                trans.isDebt = false;
+                saveDB();
+            }
+        }
+
+        // RENDERING
+        function renderAll() {
+            renderDashboard();
+            renderStudents();
+            updateSelects();
+            lucide.createIcons();
+        }
+
+        function renderDashboard() {
+            const selectedMonth = document.getElementById('reportMonth').value; // YYYY-MM
+            let income = 0;
+            let expense = 0;
+            let debt = 0;
+            
+            let incomeCats = {};
+            let expenseCats = {};
+
+            db.transactions.forEach(t => {
+                const tMonth = t.date.substring(0, 7); // Get YYYY-MM
+                
+                if (t.type === 'income') {
+                    if (t.isDebt) {
+                        debt += t.value;
+                    } else {
+                        if (tMonth === selectedMonth) {
+                            income += t.value;
+                            const catName = `${t.detail} (${t.category})`;
+                            incomeCats[catName] = (incomeCats[catName] || 0) + t.value;
+                        }
+                    }
+                } else {
+                    if (tMonth === selectedMonth) {
+                        expense += t.value;
+                        expenseCats[t.concept] = (expenseCats[t.concept] || 0) + t.value;
+                    }
+                }
+            });
+
+            document.getElementById('dash-income').innerText = `$${income.toLocaleString()}`;
+            document.getElementById('dash-expense').innerText = `$${expense.toLocaleString()}`;
+            document.getElementById('dash-debt').innerText = `$${debt.toLocaleString()}`;
+            document.getElementById('dash-balance').innerText = `$${(income - expense).toLocaleString()}`;
+
+            // Render Breakdown
+            const breakdown = document.getElementById('monthly-breakdown');
+            let html = '';
+
+            if (income === 0 && expense === 0) {
+                html = '<p class="empty-state">Sin movimientos en este mes</p>';
+            } else {
+                html += '<h4 style="color: var(--primary); font-size: 0.9rem; margin-bottom: 10px;">Ingresos por Categoría</h4>';
+                for (let cat in incomeCats) {
+                    html += `<div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:5px;">
+                        <span>${cat}</span><span>$${incomeCats[cat].toLocaleString()}</span>
+                    </div>`;
+                }
+
+                html += '<h4 style="color: var(--danger); font-size: 0.9rem; margin-top: 15px; margin-bottom: 10px;">Gastos por Concepto</h4>';
+                for (let cat in expenseCats) {
+                    html += `<div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:5px;">
+                        <span>${cat}</span><span>$${expenseCats[cat].toLocaleString()}</span>
+                    </div>`;
+                }
+
+                const surplus = income - expense;
+                html += `<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-weight: 700;">
+                    <span>EXCEDENTE:</span>
+                    <span style="color: ${surplus >= 0 ? 'var(--primary)' : 'var(--danger)'}">$${surplus.toLocaleString()}</span>
+                </div>`;
+            }
+            breakdown.innerHTML = html;
+        }
+
+        function renderStudents() {
+            const list = document.getElementById('students-list');
+            list.innerHTML = '';
+            
+            if (db.students.length === 0) {
+                list.innerHTML = '<div class="empty-state">No hay alumnos registrados</div>';
+                return;
+            }
+
+            db.students.forEach(s => {
+                // Calculate debt for this student
+                const studentDebt = db.transactions
+                    .filter(t => t.studentId === s.id && t.isDebt)
+                    .reduce((acc, curr) => acc + curr.value, 0);
+
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `
+                    <div class="item-info">
+                        <h4>${s.name}</h4>
+                        <p>${studentDebt > 0 ? `<span style="color: var(--warning)">Debe: $${studentDebt.toLocaleString()}</span>` : 'Sin deudas'}</p>
+                    </div>
+                    <div class="item-action">
+                        <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteStudent(${s.id})"><i data-lucide="trash-2"></i></button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function updateSelects() {
+            const incSelect = document.getElementById('incStudent');
+            const historyFilter = document.getElementById('historyFilter');
+            
+            let options = db.students.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            incSelect.innerHTML = `<option value="">Seleccionar Alumno</option>` + options;
+            historyFilter.innerHTML = `<option value="all">Todos</option>` + options;
+        }
+
+        function renderHistory() {
+            const filter = document.getElementById('historyFilter').value;
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+
+            let filtered = db.transactions;
+            if (filter !== 'all') {
+                filtered = db.transactions.filter(t => t.studentId == filter);
+            }
+
+            // Sort by date (newest first)
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filtered.length === 0) {
+                list.innerHTML = '<div class="empty-state">No hay movimientos registrados</div>';
+                return;
+            }
+
+            filtered.forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                
+                if (t.type === 'income') {
+                    const student = db.students.find(s => s.id === t.studentId);
+                    div.innerHTML = `
+                        <div class="item-info">
+                            <span class="badge badge-income">${t.isDebt ? 'DEUDA' : 'PAGADO'}</span>
+                            <h4>${student ? student.name : 'Desconocido'} - $${t.value.toLocaleString()}</h4>
+                            <p>${t.date} | ${t.detail} (${t.category}) | ${t.method}</p>
+                        </div>
+                        <div class="item-action">
+                            ${t.isDebt ? `<button class="btn-success" style="padding: 8px;" onclick="payDebt(${t.id})"><i data-lucide="check"></i></button>` : ''}
+                            <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteTransaction(${t.id})"><i data-lucide="trash-2"></i></button>
+                        </div>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <div class="item-info">
+                            <span class="badge badge-expense">GASTO</span>
+                            <h4>${t.recipient} - $${t.value.toLocaleString()}</h4>
+                            <p>${t.date} | ${t.concept}</p>
+                        </div>
+                        <div class="item-action">
+                            <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteTransaction(${t.id})"><i data-lucide="trash-2"></i></button>
+                        </div>
+                    `;
+                }
+                list.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        // INITIALIZATION
+        const now = new Date();
+        document.getElementById('incDate').valueAsDate = now;
+        document.getElementById('expDate').valueAsDate = now;
+        document.getElementById('reportMonth').value = now.toISOString().substring(0, 7);
+        document.getElementById('date-display').innerText = now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        renderAll();
+
+        // SERVICE WORKER REGISTRATION
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker Registrado'));
+        }
+    </script>
+</body>
+</html>
