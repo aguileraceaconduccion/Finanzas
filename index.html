@@ -263,13 +263,11 @@
                     <select id="incStudent"></select>
                 </div>
                 <div class="form-group">
-                    <label>Valor</label>
-                    <input type="number" id="incValue" placeholder="0">
-                </div>
-                <div class="form-group">
                     <label>Detalle del Proceso</label>
                     <select id="incDetail" onchange="toggleOther('incDetail', 'incDetailOther')">
-                        <option value="Ingreso a la academia">Ingreso a la academia</option>
+                        <option value="Curso de conducción">Curso de conducción</option>
+                        <option value="Validaciones">Validaciones</option>
+                        <option value="Cargue de clases">Cargue de clases</option>
                         <option value="Clases de refuerzo">Clases de refuerzo</option>
                         <option value="Trámites de movilidad">Trámites de movilidad</option>
                         <option value="Otro">Otro...</option>
@@ -291,16 +289,25 @@
                     <input type="text" id="incCategoryOther" placeholder="Especifique categoría" style="display:none; margin-top:10px;">
                 </div>
                 <div class="form-group">
-                    <label>Método de Pago</label>
+                    <label>Valor Total de Venta</label>
+                    <input type="number" id="incTotalValue" placeholder="0" oninput="calculateBalance()">
+                </div>
+                <div class="form-group">
+                    <label>Abono Inicial</label>
+                    <input type="number" id="incPaidValue" placeholder="0" oninput="calculateBalance()">
+                </div>
+                <div class="form-group">
+                    <label>Saldo por Cobrar</label>
+                    <input type="number" id="incBalance" value="0" readonly style="background: rgba(255,255,255,0.05); color: var(--warning);">
+                </div>
+                <div class="form-group">
+                    <label>Método de Pago (del abono)</label>
                     <select id="incMethod" onchange="toggleOther('incMethod', 'incMethodOther')">
                         <option value="Efectivo">Efectivo</option>
                         <option value="Transferencia">Transferencia</option>
                         <option value="Otro">Otro...</option>
                     </select>
                     <input type="text" id="incMethodOther" placeholder="Especifique método" style="display:none; margin-top:10px;">
-                </div>
-                <div class="form-group">
-                    <label><input type="checkbox" id="incIsDebt" style="width: auto;"> ¿Es una deuda? (Pendiente por cobrar)</label>
                 </div>
                 <button class="btn-success" onclick="addIncome()">Guardar Ingreso</button>
             </div>
@@ -333,6 +340,7 @@
                         <option value="Mercado">Mercado</option>
                         <option value="Salidas familia">Salidas familia</option>
                         <option value="Créditos">Créditos</option>
+                        <option value="Cadena">Cadena (Ahorro/Inversión)</option>
                         <option value="Otro">Otro...</option>
                     </select>
                     <input type="text" id="expConceptOther" placeholder="Especifique concepto" style="display:none; margin-top:10px;">
@@ -354,6 +362,27 @@
                 </select>
             </div>
             <div id="history-list" class="item-list"></div>
+        </div>
+
+        <!-- REMINDERS SECTION -->
+        <div id="section-reminders" class="section">
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>📅 Programar Recordatorio</h3>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label>Título / Concepto</label>
+                    <input type="text" id="remTitle" placeholder="Ej: Pago arriendo, Cuota banco...">
+                </div>
+                <div class="form-group">
+                    <label>Fecha de Pago</label>
+                    <input type="date" id="remDate">
+                </div>
+                <div class="form-group">
+                    <label><input type="checkbox" id="remRecurring" style="width: auto;"> Recurrente mensual (mismo día)</label>
+                </div>
+                <button class="btn-primary" onclick="addReminder()">Guardar Recordatorio</button>
+            </div>
+            <h3>Próximos Pagos</h3>
+            <div id="reminders-list" class="item-list" style="margin-top: 15px;"></div>
         </div>
 
     </div>
@@ -379,18 +408,24 @@
             <i data-lucide="history"></i>
             <span>Historial</span>
         </div>
+        <div class="nav-item" id="nav-reminders" onclick="showSection('reminders')">
+            <i data-lucide="calendar"></i>
+            <span>Pagos</span>
+        </div>
     </nav>
 
     <script>
         // DATA STATE
         let db = {
             students: JSON.parse(localStorage.getItem('students')) || [],
-            transactions: JSON.parse(localStorage.getItem('transactions')) || []
+            transactions: JSON.parse(localStorage.getItem('transactions')) || [],
+            reminders: JSON.parse(localStorage.getItem('reminders')) || []
         };
 
         function saveDB() {
             localStorage.setItem('students', JSON.stringify(db.students));
             localStorage.setItem('transactions', JSON.stringify(db.transactions));
+            localStorage.setItem('reminders', JSON.stringify(db.reminders));
             renderAll();
         }
 
@@ -411,6 +446,12 @@
             const other = document.getElementById(otherId);
             other.style.display = select.value === 'Otro' ? 'block' : 'none';
             if (select.value === 'Otro') other.focus();
+        }
+
+        function calculateBalance() {
+            const total = parseFloat(document.getElementById('incTotalValue').value) || 0;
+            const paid = parseFloat(document.getElementById('incPaidValue').value) || 0;
+            document.getElementById('incBalance').value = total - paid;
         }
 
         // LOGIC: STUDENTS
@@ -434,7 +475,9 @@
         function addIncome() {
             const date = document.getElementById('incDate').value;
             const studentId = parseInt(document.getElementById('incStudent').value);
-            const value = parseFloat(document.getElementById('incValue').value);
+            const totalValue = parseFloat(document.getElementById('incTotalValue').value);
+            const paidValue = parseFloat(document.getElementById('incPaidValue').value);
+            const balance = totalValue - paidValue;
             
             let detail = document.getElementById('incDetail').value;
             if (detail === 'Otro') detail = document.getElementById('incDetailOther').value;
@@ -444,26 +487,27 @@
             
             let method = document.getElementById('incMethod').value;
             if (method === 'Otro') method = document.getElementById('incMethodOther').value;
-            
-            const isDebt = document.getElementById('incIsDebt').checked;
 
-            if (!date || isNaN(studentId) || isNaN(value) || !detail) return alert('Completa todos los campos');
+            if (!date || isNaN(studentId) || isNaN(totalValue) || isNaN(paidValue) || !detail) return alert('Completa todos los campos');
 
             db.transactions.push({
                 id: Date.now(),
                 type: 'income',
                 date,
                 studentId,
-                value,
+                totalValue,
+                paidValue,
+                balance,
                 detail,
                 category,
                 method,
-                isDebt
+                isDebt: balance > 0
             });
 
             // Reset fields
-            document.getElementById('incValue').value = '';
-            document.getElementById('incIsDebt').checked = false;
+            document.getElementById('incTotalValue').value = '';
+            document.getElementById('incPaidValue').value = '';
+            document.getElementById('incBalance').value = '0';
             showSection('dashboard');
             saveDB();
         }
@@ -504,7 +548,59 @@
         function payDebt(id) {
             const trans = db.transactions.find(t => t.id === id);
             if (trans) {
-                trans.isDebt = false;
+                const payment = parseFloat(prompt(`Saldo actual: $${trans.balance.toLocaleString()}\nIngrese el valor del abono:`, trans.balance));
+                if (isNaN(payment) || payment <= 0) return;
+                
+                if (payment >= trans.balance) {
+                    trans.paidValue += trans.balance;
+                    trans.balance = 0;
+                    trans.isDebt = false;
+                } else {
+                    trans.paidValue += payment;
+                    trans.balance -= payment;
+                }
+                saveDB();
+            }
+        }
+
+        // LOGIC: REMINDERS
+        function addReminder() {
+            const title = document.getElementById('remTitle').value.trim();
+            const date = document.getElementById('remDate').value;
+            const recurring = document.getElementById('remRecurring').checked;
+
+            if (!title || !date) return alert('Completa título y fecha');
+
+            db.reminders.push({
+                id: Date.now(),
+                title,
+                date,
+                recurring,
+                completed: false
+            });
+
+            document.getElementById('remTitle').value = '';
+            saveDB();
+        }
+
+        function deleteReminder(id) {
+            if (confirm('¿Eliminar recordatorio?')) {
+                db.reminders = db.reminders.filter(r => r.id !== id);
+                saveDB();
+            }
+        }
+
+        function toggleReminder(id) {
+            const rem = db.reminders.find(r => r.id === id);
+            if (rem) {
+                if (rem.recurring && !rem.completed) {
+                    // If recurring, move to next month
+                    const nextDate = new Date(rem.date);
+                    nextDate.setMonth(nextDate.getMonth() + 1);
+                    rem.date = nextDate.toISOString().substring(0, 10);
+                } else {
+                    rem.completed = !rem.completed;
+                }
                 saveDB();
             }
         }
@@ -513,6 +609,7 @@
         function renderAll() {
             renderDashboard();
             renderStudents();
+            renderReminders();
             updateSelects();
             lucide.createIcons();
         }
@@ -531,13 +628,13 @@
                 
                 if (t.type === 'income') {
                     if (t.isDebt) {
-                        debt += t.value;
-                    } else {
-                        if (tMonth === selectedMonth) {
-                            income += t.value;
-                            const catName = `${t.detail} (${t.category})`;
-                            incomeCats[catName] = (incomeCats[catName] || 0) + t.value;
-                        }
+                        debt += (t.balance || 0);
+                    }
+                    
+                    if (tMonth === selectedMonth) {
+                        income += (t.paidValue || t.value || 0);
+                        const catName = `${t.detail} (${t.category})`;
+                        incomeCats[catName] = (incomeCats[catName] || 0) + (t.paidValue || t.value || 0);
                     }
                 } else {
                     if (tMonth === selectedMonth) {
@@ -575,7 +672,7 @@
 
                 const surplus = income - expense;
                 html += `<div style="margin-top: 20px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-weight: 700;">
-                    <span>EXCEDENTE:</span>
+                    <span>GANANCIA DEL MES:</span>
                     <span style="color: ${surplus >= 0 ? 'var(--primary)' : 'var(--danger)'}">$${surplus.toLocaleString()}</span>
                 </div>`;
             }
@@ -595,7 +692,7 @@
                 // Calculate debt for this student
                 const studentDebt = db.transactions
                     .filter(t => t.studentId === s.id && t.isDebt)
-                    .reduce((acc, curr) => acc + curr.value, 0);
+                    .reduce((acc, curr) => acc + (curr.balance || 0), 0);
 
                 const div = document.createElement('div');
                 div.className = 'item';
@@ -646,21 +743,23 @@
                 
                 if (t.type === 'income') {
                     const student = db.students.find(s => s.id === t.studentId);
+                    const valDisplay = t.totalValue ? `$${t.paidValue.toLocaleString()} / $${t.totalValue.toLocaleString()}` : `$${t.value.toLocaleString()}`;
                     div.innerHTML = `
                         <div class="item-info">
-                            <span class="badge badge-income">${t.isDebt ? 'DEUDA' : 'PAGADO'}</span>
-                            <h4>${student ? student.name : 'Desconocido'} - $${t.value.toLocaleString()}</h4>
-                            <p>${t.date} | ${t.detail} (${t.category}) | ${t.method}</p>
+                            <span class="badge badge-income">${t.isDebt ? 'CON SALDO' : 'PAGADO'}</span>
+                            <h4>${student ? student.name : 'Desconocido'} - ${valDisplay}</h4>
+                            <p>${t.date} | ${t.detail} (${t.category})</p>
+                            ${t.isDebt ? `<p style="color: var(--warning)">Saldo: $${t.balance.toLocaleString()}</p>` : ''}
                         </div>
                         <div class="item-action">
-                            ${t.isDebt ? `<button class="btn-success" style="padding: 8px;" onclick="payDebt(${t.id})"><i data-lucide="check"></i></button>` : ''}
+                            ${t.isDebt ? `<button class="btn-success" style="padding: 8px;" onclick="payDebt(${t.id})"><i data-lucide="plus"></i></button>` : ''}
                             <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteTransaction(${t.id})"><i data-lucide="trash-2"></i></button>
                         </div>
                     `;
                 } else {
                     div.innerHTML = `
                         <div class="item-info">
-                            <span class="badge badge-expense">GASTO</span>
+                            <span class="badge badge-expense">${t.concept === 'Cadena' ? 'INVERSIÓN' : 'GASTO'}</span>
                             <h4>${t.recipient} - $${t.value.toLocaleString()}</h4>
                             <p>${t.date} | ${t.concept}</p>
                         </div>
@@ -674,11 +773,51 @@
             lucide.createIcons();
         }
 
+        function renderReminders() {
+            const list = document.getElementById('reminders-list');
+            list.innerHTML = '';
+
+            if (db.reminders.length === 0) {
+                list.innerHTML = '<div class="empty-state">No hay pagos programados</div>';
+                return;
+            }
+
+            // Sort by date
+            const sorted = [...db.reminders].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            sorted.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                if (r.completed) div.style.opacity = '0.5';
+
+                const dateObj = new Date(r.date);
+                const isLate = dateObj < new Date() && !r.completed;
+
+                div.innerHTML = `
+                    <div class="item-info">
+                        <h4 style="${r.completed ? 'text-decoration: line-through;' : ''}">${r.title}</h4>
+                        <p style="${isLate ? 'color: var(--danger); font-weight: bold;' : ''}">${r.date} ${r.recurring ? '(Mensual)' : ''}</p>
+                    </div>
+                    <div class="item-action">
+                        <button class="${r.completed ? 'btn-primary' : 'btn-success'}" style="width: 40px; padding: 8px;" onclick="toggleReminder(${r.id})">
+                            <i data-lucide="${r.completed ? 'rotate-ccw' : 'check'}"></i>
+                        </button>
+                        <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteReminder(${r.id})">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
         // INITIALIZATION
         const now = new Date();
         document.getElementById('incDate').valueAsDate = now;
         document.getElementById('expDate').valueAsDate = now;
         document.getElementById('reportMonth').value = now.toISOString().substring(0, 7);
+        document.getElementById('remDate').valueAsDate = now;
         document.getElementById('date-display').innerText = now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
         
         renderAll();
