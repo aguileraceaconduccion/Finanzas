@@ -264,8 +264,9 @@
                 </div>
                 <div class="form-group">
                     <label>Alumno / Cliente</label>
-                    <select id="incStudent"></select>
+                    <select id="incStudent" onchange="checkStudentDebt()"></select>
                 </div>
+                <div id="inc-detail-container">
                 <div class="form-group">
                     <label>Detalle del Proceso</label>
                     <select id="incDetail" onchange="toggleOther('incDetail', 'incDetailOther')">
@@ -292,16 +293,21 @@
                     </select>
                     <input type="text" id="incCategoryOther" placeholder="Especifique categoría" style="display:none; margin-top:10px;">
                 </div>
+                </div> <!-- End inc-detail-container -->
                 <div class="form-group">
-                    <label>Valor Total de Venta</label>
+                    <label id="lbl-incTotalValue">Valor Total de Venta</label>
                     <input type="number" id="incTotalValue" placeholder="0" oninput="calculateBalance()">
                 </div>
                 <div class="form-group">
-                    <label>Abono Inicial</label>
+                    <label id="lbl-incPaidValue">Abono Inicial</label>
                     <input type="number" id="incPaidValue" placeholder="0" oninput="calculateBalance()">
                 </div>
+                <div class="form-group" id="inc-new-payment-container" style="display:none; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid var(--warning);">
+                    <label style="color: var(--warning);">Nuevo Abono</label>
+                    <input type="number" id="incNewPayment" placeholder="0" oninput="calculateBalance()">
+                </div>
                 <div class="form-group">
-                    <label>Saldo por Cobrar</label>
+                    <label id="lbl-incBalance">Saldo por Cobrar</label>
                     <input type="number" id="incBalance" value="0" readonly style="background: rgba(255,255,255,0.05); color: var(--warning);">
                 </div>
                 <div class="form-group">
@@ -389,6 +395,22 @@
             <div id="reminders-list" class="item-list" style="margin-top: 15px;"></div>
         </div>
 
+        <!-- SETTINGS SECTION -->
+        <div id="section-settings" class="section">
+            <div class="card" style="margin-bottom: 20px;">
+                <h3>⚙️ Copia de Seguridad</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 15px;">Guarda tus datos o transfiérelos a otra versión de la aplicación.</p>
+                
+                <button class="btn-primary" onclick="exportData()" style="margin-bottom: 15px;"><i data-lucide="download-cloud"></i> Exportar Datos (Copiar texto)</button>
+                
+                <h4 style="margin-bottom: 10px; margin-top: 20px; color: var(--warning);">Restaurar Datos</h4>
+                <div class="form-group">
+                    <textarea id="importDataText" rows="4" placeholder="Pega aquí los datos exportados..."></textarea>
+                </div>
+                <button class="btn-warning" style="background: var(--warning); color: #000;" onclick="importData()"><i data-lucide="upload-cloud"></i> Importar Datos</button>
+            </div>
+        </div>
+
     </div>
 
     <nav>
@@ -415,6 +437,10 @@
         <div class="nav-item" id="nav-reminders" onclick="showSection('reminders')">
             <i data-lucide="calendar"></i>
             <span>Pagos</span>
+        </div>
+        <div class="nav-item" id="nav-settings" onclick="showSection('settings')">
+            <i data-lucide="settings"></i>
+            <span>Ajustes</span>
         </div>
     </nav>
 
@@ -455,9 +481,71 @@
         }
 
         function calculateBalance() {
-            const total = parseFloat(document.getElementById('incTotalValue').value) || 0;
-            const paid = parseFloat(document.getElementById('incPaidValue').value) || 0;
-            document.getElementById('incBalance').value = total - paid;
+            const studentId = parseInt(document.getElementById('incStudent').value);
+            const existingDebt = db.transactions.find(t => t.studentId === studentId && t.isDebt && t.type === 'income');
+            
+            if (existingDebt) {
+                const newPayment = parseFloat(document.getElementById('incNewPayment').value) || 0;
+                document.getElementById('incBalance').value = existingDebt.balance - newPayment;
+            } else {
+                const total = parseFloat(document.getElementById('incTotalValue').value) || 0;
+                const paid = parseFloat(document.getElementById('incPaidValue').value) || 0;
+                document.getElementById('incBalance').value = total - paid;
+            }
+        }
+
+        function checkStudentDebt() {
+            const studentId = parseInt(document.getElementById('incStudent').value);
+            const existingDebt = db.transactions.find(t => t.studentId === studentId && t.isDebt && t.type === 'income');
+            
+            const totalInput = document.getElementById('incTotalValue');
+            const paidInput = document.getElementById('incPaidValue');
+            const balanceInput = document.getElementById('incBalance');
+            
+            if (existingDebt) {
+                // Modo Abono a Deuda
+                document.getElementById('inc-detail-container').style.display = 'none';
+                
+                // Calculate total paid (initial + any existing payments)
+                const payments = db.transactions.filter(p => p.type === 'payment' && p.relatedSaleId === existingDebt.id);
+                const sumPayments = payments.reduce((acc, curr) => acc + curr.value, 0);
+                const totalPaidSoFar = existingDebt.paidValue + sumPayments;
+                
+                document.getElementById('lbl-incTotalValue').innerText = 'Valor Total Original';
+                totalInput.value = existingDebt.totalValue;
+                totalInput.readOnly = true;
+                totalInput.style.background = 'rgba(255,255,255,0.05)';
+                
+                document.getElementById('lbl-incPaidValue').innerText = 'Abonos Anteriores';
+                paidInput.value = totalPaidSoFar;
+                paidInput.readOnly = true;
+                paidInput.style.background = 'rgba(255,255,255,0.05)';
+                
+                document.getElementById('inc-new-payment-container').style.display = 'block';
+                document.getElementById('incNewPayment').value = '';
+                
+                document.getElementById('lbl-incBalance').innerText = 'Saldo Restante';
+                balanceInput.value = existingDebt.balance;
+                
+            } else {
+                // Modo Venta Nueva
+                document.getElementById('inc-detail-container').style.display = 'block';
+                
+                document.getElementById('lbl-incTotalValue').innerText = 'Valor Total de Venta';
+                totalInput.value = '';
+                totalInput.readOnly = false;
+                totalInput.style.background = 'rgba(255, 255, 255, 0.1)';
+                
+                document.getElementById('lbl-incPaidValue').innerText = 'Abono Inicial';
+                paidInput.value = '';
+                paidInput.readOnly = false;
+                paidInput.style.background = 'rgba(255, 255, 255, 0.1)';
+                
+                document.getElementById('inc-new-payment-container').style.display = 'none';
+                
+                document.getElementById('lbl-incBalance').innerText = 'Saldo por Cobrar';
+                balanceInput.value = '0';
+            }
         }
 
         // LOGIC: STUDENTS
@@ -481,6 +569,46 @@
         function addIncome() {
             const date = document.getElementById('incDate').value;
             const studentId = parseInt(document.getElementById('incStudent').value);
+            
+            const existingDebt = db.transactions.find(t => t.studentId === studentId && t.isDebt && t.type === 'income');
+            
+            if (existingDebt) {
+                // Abono a Deuda
+                const newPayment = parseFloat(document.getElementById('incNewPayment').value);
+                let method = document.getElementById('incMethod').value;
+                if (method === 'Otro') method = document.getElementById('incMethodOther').value;
+
+                if (!date || isNaN(newPayment) || newPayment <= 0) return alert('Completa la fecha y el valor del abono');
+
+                db.lastReceiptNumber++;
+                const receiptNumber = `RC-${String(db.lastReceiptNumber).padStart(3, '0')}`;
+
+                db.transactions.push({
+                    id: Date.now(),
+                    type: 'payment',
+                    relatedSaleId: existingDebt.id,
+                    receiptNumber,
+                    date,
+                    studentId,
+                    value: newPayment,
+                    method
+                });
+
+                existingDebt.balance -= newPayment;
+                if (existingDebt.balance <= 0) {
+                    existingDebt.balance = 0;
+                    existingDebt.isDebt = false;
+                }
+
+                document.getElementById('incNewPayment').value = '';
+                document.getElementById('incStudent').value = '';
+                checkStudentDebt();
+                showSection('dashboard');
+                saveDB();
+                return;
+            }
+
+            // Venta Nueva
             const totalValue = parseFloat(document.getElementById('incTotalValue').value);
             const paidValue = parseFloat(document.getElementById('incPaidValue').value);
             const balance = totalValue - paidValue;
@@ -518,6 +646,7 @@
             document.getElementById('incTotalValue').value = '';
             document.getElementById('incPaidValue').value = '';
             document.getElementById('incBalance').value = '0';
+            document.getElementById('incStudent').value = '';
             showSection('dashboard');
             saveDB();
         }
@@ -557,19 +686,10 @@
 
         function payDebt(id) {
             const trans = db.transactions.find(t => t.id === id);
-            if (trans) {
-                const payment = parseFloat(prompt(`Saldo actual: $${trans.balance.toLocaleString()}\nIngrese el valor del abono:`, trans.balance));
-                if (isNaN(payment) || payment <= 0) return;
-                
-                if (payment >= trans.balance) {
-                    trans.paidValue += trans.balance;
-                    trans.balance = 0;
-                    trans.isDebt = false;
-                } else {
-                    trans.paidValue += payment;
-                    trans.balance -= payment;
-                }
-                saveDB();
+            if (trans && trans.isDebt) {
+                showSection('income');
+                document.getElementById('incStudent').value = trans.studentId;
+                checkStudentDebt();
             }
         }
 
@@ -615,6 +735,41 @@
             }
         }
 
+        // LOGIC: BACKUP & RESTORE
+        function exportData() {
+            const dataStr = JSON.stringify(localStorage);
+            navigator.clipboard.writeText(dataStr).then(() => {
+                alert("¡Datos copiados al portapapeles! Ahora puedes pegarlos en la nueva aplicación.");
+            }).catch(err => {
+                // Fallback for older browsers
+                const textArea = document.createElement("textarea");
+                textArea.value = dataStr;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("Copy");
+                textArea.remove();
+                alert("¡Datos copiados al portapapeles! Ahora puedes pegarlos en la nueva aplicación.");
+            });
+        }
+
+        function importData() {
+            const dataStr = document.getElementById('importDataText').value.trim();
+            if (!dataStr) return alert("Pega los datos primero.");
+            
+            try {
+                const dataObj = JSON.parse(dataStr);
+                if (confirm("⚠️ ADVERTENCIA: Esto reemplazará todos los datos actuales con los datos importados. ¿Estás seguro?")) {
+                    for (let key in dataObj) {
+                        localStorage.setItem(key, dataObj[key]);
+                    }
+                    alert("Datos importados con éxito. La aplicación se recargará.");
+                    location.reload();
+                }
+            } catch(e) {
+                alert("Error: El texto introducido no es válido. Asegúrate de copiarlo completo.");
+            }
+        }
+
         // LOGIC: PDF GENERATION
         async function generateReceiptPDF(id) {
             const trans = db.transactions.find(t => t.id === id);
@@ -656,16 +811,22 @@
             doc.text("FECHA:", 20, 70);
             doc.text("RECIBIDO DE:", 20, 80);
             doc.text("CONCEPTO:", 20, 90);
-            doc.text("CATEGORÍA:", 20, 100);
+            doc.text(trans.type === 'payment' ? "" : "CATEGORÍA:", 20, 100);
             doc.text("MÉTODO PAGO:", 20, 110);
+
+            let conceptoDisplay = trans.detail;
+            if (trans.type === 'payment') {
+                const relatedSale = db.transactions.find(s => s.id === trans.relatedSaleId);
+                conceptoDisplay = relatedSale ? `Abono a Deuda: ${relatedSale.detail}` : 'Abono a Deuda';
+            }
 
             doc.setTextColor(15, 23, 42);
             doc.setFont("helvetica", "bold");
             doc.text(trans.date, 60, 70);
             doc.text(student ? student.name.toUpperCase() : "CLIENTE GENERAL", 60, 80);
-            doc.text(trans.detail, 60, 90);
-            doc.text(trans.category, 60, 100);
-            doc.text(trans.method, 60, 110);
+            doc.text(conceptoDisplay || '', 60, 90);
+            if (trans.type !== 'payment') doc.text(trans.category || '', 60, 100);
+            doc.text(trans.method || '', 60, 110);
 
             // Financial Table
             doc.setFillColor(248, 250, 252);
@@ -673,18 +834,25 @@
             
             doc.setFontSize(11);
             doc.setTextColor(100, 116, 139);
-            doc.text("VALOR TOTAL DE VENTA:", 30, 137);
-            doc.text("VALOR ABONADO:", 30, 147);
-            doc.text("SALDO PENDIENTE:", 30, 160);
+            if (trans.type === 'payment') {
+                doc.text("VALOR ABONADO:", 30, 147);
+                
+                doc.setTextColor(16, 185, 129); // Green
+                doc.text(`$${(trans.value || 0).toLocaleString()}`, 180, 147, { align: "right" });
+            } else {
+                doc.text("VALOR TOTAL DE VENTA:", 30, 137);
+                doc.text("VALOR ABONADO:", 30, 147);
+                doc.text("SALDO PENDIENTE:", 30, 160);
 
-            doc.setTextColor(15, 23, 42);
-            doc.text(`$${(trans.totalValue || 0).toLocaleString()}`, 180, 137, { align: "right" });
-            doc.setTextColor(16, 185, 129); // Green
-            doc.text(`$${(trans.paidValue || 0).toLocaleString()}`, 180, 147, { align: "right" });
-            
-            doc.setFontSize(14);
-            doc.setTextColor(239, 68, 68); // Red
-            doc.text(`$${(trans.balance || 0).toLocaleString()}`, 180, 160, { align: "right" });
+                doc.setTextColor(15, 23, 42);
+                doc.text(`$${(trans.totalValue || 0).toLocaleString()}`, 180, 137, { align: "right" });
+                doc.setTextColor(16, 185, 129); // Green
+                doc.text(`$${(trans.paidValue || 0).toLocaleString()}`, 180, 147, { align: "right" });
+                
+                doc.setFontSize(14);
+                doc.setTextColor(239, 68, 68); // Red
+                doc.text(`$${(trans.balance || 0).toLocaleString()}`, 180, 160, { align: "right" });
+            }
 
             // Footer
             doc.setFontSize(9);
@@ -731,11 +899,18 @@
                     }
                     
                     if (tMonth === selectedMonth) {
-                        income += (t.paidValue || t.value || 0);
+                        income += (t.paidValue || 0);
                         const catName = `${t.detail} (${t.category})`;
-                        incomeCats[catName] = (incomeCats[catName] || 0) + (t.paidValue || t.value || 0);
+                        incomeCats[catName] = (incomeCats[catName] || 0) + (t.paidValue || 0);
                     }
-                } else {
+                } else if (t.type === 'payment') {
+                    if (tMonth === selectedMonth) {
+                        income += (t.value || 0);
+                        const relatedSale = db.transactions.find(s => s.id === t.relatedSaleId);
+                        const catName = relatedSale ? `Abono: ${relatedSale.detail}` : 'Abono a Deuda';
+                        incomeCats[catName] = (incomeCats[catName] || 0) + (t.value || 0);
+                    }
+                } else if (t.type === 'expense') {
                     if (tMonth === selectedMonth) {
                         expense += t.value;
                         expenseCats[t.concept] = (expenseCats[t.concept] || 0) + t.value;
@@ -849,11 +1024,26 @@
                             <span style="font-size: 0.7rem; color: var(--secondary); font-weight: bold; margin-left: 5px;">${t.receiptNumber || 'Sin #'}</span>
                             <h4>${student ? student.name : 'Desconocido'} - ${valDisplay}</h4>
                             <p>${t.date} | ${t.detail} (${t.category})</p>
-                            ${t.isDebt ? `<p style="color: var(--warning)">Saldo: $${t.balance.toLocaleString()}</p>` : ''}
+                            ${t.isDebt ? `<p style="color: var(--warning)">Saldo Pendiente: $${t.balance.toLocaleString()}</p>` : ''}
                         </div>
                         <div class="item-action">
                             <button class="btn-primary" style="width: 40px; padding: 8px;" onclick="generateReceiptPDF(${t.id})" title="Descargar Recibo"><i data-lucide="download"></i></button>
                             ${t.isDebt ? `<button class="btn-success" style="padding: 8px;" onclick="payDebt(${t.id})"><i data-lucide="plus"></i></button>` : ''}
+                            <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteTransaction(${t.id})"><i data-lucide="trash-2"></i></button>
+                        </div>
+                    `;
+                } else if (t.type === 'payment') {
+                    const student = db.students.find(s => s.id === t.studentId);
+                    const relatedSale = db.transactions.find(s => s.id === t.relatedSaleId);
+                    div.innerHTML = `
+                        <div class="item-info">
+                            <span class="badge badge-income" style="background: rgba(245, 158, 11, 0.2); color: var(--warning);">ABONO</span>
+                            <span style="font-size: 0.7rem; color: var(--secondary); font-weight: bold; margin-left: 5px;">${t.receiptNumber || 'Sin #'}</span>
+                            <h4>${student ? student.name : 'Desconocido'} - $${t.value.toLocaleString()}</h4>
+                            <p>${t.date} | Abono a: ${relatedSale ? relatedSale.detail : 'Deuda'}</p>
+                        </div>
+                        <div class="item-action">
+                            <button class="btn-primary" style="width: 40px; padding: 8px;" onclick="generateReceiptPDF(${t.id})" title="Descargar Recibo"><i data-lucide="download"></i></button>
                             <button class="btn-danger" style="width: 40px; padding: 8px;" onclick="deleteTransaction(${t.id})"><i data-lucide="trash-2"></i></button>
                         </div>
                     `;
