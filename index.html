@@ -491,6 +491,15 @@
             renderAll();
         }
 
+        function getCustomerName(t) {
+            if (t.customerName) return t.customerName;
+            if (t.studentId && db.students) {
+                const student = db.students.find(s => s.id == t.studentId);
+                if (student) return student.name;
+            }
+            return t.recipient || 'Desconocido';
+        }
+
         // NAVIGATION
         function showSection(sectionId) {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
@@ -755,7 +764,7 @@
                 const date = t.date || '';
                 const type = t.type === 'income' ? 'Venta' : (t.type === 'expense' ? 'Gasto' : 'Abono');
                 const receipt = t.receiptNumber || '';
-                const customer = (t.customerName || t.recipient || '').replace(/,/g, '');
+                const customer = getCustomerName(t).replace(/,/g, '');
                 const doc = `${t.docType || ''} ${t.docNumber || ''}`.trim();
                 const phone = t.phone || '';
                 const category = (t.category || t.concept || '').replace(/,/g, '');
@@ -864,7 +873,7 @@
             doc.setTextColor(15, 23, 42);
             doc.setFont("helvetica", "bold");
             doc.text(trans.date, 60, 70);
-            doc.text((sale.customerName || "CLIENTE").toUpperCase(), 50, 80);
+            doc.text((getCustomerName(sale) || "CLIENTE").toUpperCase(), 50, 80);
             if (sale.docType && sale.docNumber) {
                 doc.text(`${getDocAbbr(sale.docType)} ${sale.docNumber}`, 145, 80);
             }
@@ -956,7 +965,8 @@
             doc.text("Firma Autorizada", 155, 245, { align: "center" });
 
             // Save the PDF
-            const fileName = `Recibo_${trans.receiptNumber || 'RC'}_${sale.customerName ? sale.customerName.replace(/\s+/g, '_') : 'Cliente'}.pdf`;
+            const customerNameForFile = getCustomerName(sale) || 'Cliente';
+            const fileName = `Recibo_${trans.receiptNumber || 'RC'}_${customerNameForFile.replace(/\s+/g, '_')}.pdf`;
             doc.save(fileName);
         }
 
@@ -1114,7 +1124,7 @@
                 const searchVal = searchInput.value.toLowerCase().trim();
                 if (searchVal) {
                     filtered = filtered.filter(t => {
-                        const nameStr = (t.customerName || t.recipient || '').toLowerCase();
+                        const nameStr = (getCustomerName(t) || '').toLowerCase();
                         const docStr = (t.docNumber || '').toLowerCase();
                         const receiptStr = (t.receiptNumber || '').toLowerCase();
                         return nameStr.includes(searchVal) || docStr.includes(searchVal) || receiptStr.includes(searchVal);
@@ -1149,7 +1159,7 @@
                         <div class="item-info">
                             <span class="badge badge-income">${t.isDebt ? 'CON SALDO' : 'PAGADO'}</span>
                             <span style="font-size: 0.7rem; color: var(--secondary); font-weight: bold; margin-left: 5px;">${t.receiptNumber || 'Sin #'}</span>
-                            <h4 style="margin-bottom: 2px;">${t.customerName || 'Desconocido'} - ${valDisplay}</h4>
+                            <h4 style="margin-bottom: 2px;">${getCustomerName(t)} - ${valDisplay}</h4>
                             ${docInfo}
                             <p>${t.date} | ${t.category || t.detail}</p>
                             ${t.isDebt ? `<p style="color: var(--warning); margin-top: 5px;">Saldo Pendiente: $${t.balance.toLocaleString()}</p>` : ''}
@@ -1315,7 +1325,7 @@
                     <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div>
                             <span style="font-size: 0.8rem; color: var(--text-muted);">Cliente</span>
-                            <p style="font-weight: bold;">${t.customerName}</p>
+                            <p style="font-weight: bold;">${getCustomerName(t)}</p>
                         </div>
                         <div>
                             <span style="font-size: 0.8rem; color: var(--text-muted);">Documento</span>
@@ -1407,8 +1417,7 @@
                     `;
                 }
             }
-            
-            const whatsappText = encodeURIComponent(`Hola ${t.customerName}, adjunto el detalle de tu compra.\nConcepto: ${t.category}\nValor Total: $${t.totalValue.toLocaleString()}\nAbonado: $${t.paidValue.toLocaleString()}\nSaldo: $${t.balance.toLocaleString()}\n\n*Por favor envía el comprobante PDF generado.*`);
+            const whatsappText = encodeURIComponent(`Hola ${getCustomerName(t)}, adjunto el detalle de tu compra.\nConcepto: ${t.category}\nValor Total: $${t.totalValue.toLocaleString()}\nAbonado: $${t.paidValue.toLocaleString()}\nSaldo: $${t.balance.toLocaleString()}\n\n*Por favor envía el comprobante PDF generado.*`);
             html += `
                 <div style="display:flex; gap: 10px; margin-top: 20px;">
                     <button class="btn-primary" onclick="generateReceiptPDF(${t.id})" style="flex: 1;"><i data-lucide="download"></i> Descargar PDF</button>
