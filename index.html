@@ -397,6 +397,12 @@
                 <h3 style="margin: 0;">Historial de Ventas</h3>
                 <button class="btn-warning" id="btn-toggle-debts" style="width: auto; padding: 8px 12px; font-size: 0.8rem; background: var(--warning); color: #000;" onclick="toggleDebtFilter()">Ver Saldos Pendientes</button>
             </div>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <div style="position: relative;">
+                    <input type="text" id="historySearchInput" placeholder="Buscar por nombre o documento..." onkeyup="renderHistory()" style="padding-left: 35px;">
+                    <i data-lucide="search" style="position: absolute; left: 10px; top: 10px; color: var(--text-muted); width: 18px;"></i>
+                </div>
+            </div>
             <div id="history-list" class="item-list"></div>
         </div>
 
@@ -1103,10 +1109,23 @@
                 filtered = filtered.filter(t => t.type === 'income' && t.isDebt && t.balance > 0);
             }
 
+            const searchInput = document.getElementById('historySearchInput');
+            if (searchInput) {
+                const searchVal = searchInput.value.toLowerCase().trim();
+                if (searchVal) {
+                    filtered = filtered.filter(t => {
+                        const nameStr = (t.customerName || t.recipient || '').toLowerCase();
+                        const docStr = (t.docNumber || '').toLowerCase();
+                        const receiptStr = (t.receiptNumber || '').toLowerCase();
+                        return nameStr.includes(searchVal) || docStr.includes(searchVal) || receiptStr.includes(searchVal);
+                    });
+                }
+            }
+
             filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
             if (filtered.length === 0) {
-                list.innerHTML = `<div class="empty-state">${showOnlyDebts ? 'No hay saldos pendientes' : 'No hay movimientos registrados'}</div>`;
+                list.innerHTML = `<div class="empty-state">${showOnlyDebts ? 'No hay saldos pendientes' : 'No hay movimientos registrados que coincidan'}</div>`;
                 return;
             }
 
@@ -1124,13 +1143,16 @@
                 
                 if (t.type === 'income') {
                     const valDisplay = t.totalValue ? `$${t.paidValue.toLocaleString()} / $${t.totalValue.toLocaleString()}` : `$${(t.value || 0).toLocaleString()}`;
+                    const docAbbr = getDocAbbr(t.docType) || t.docType || '';
+                    const docInfo = t.docNumber ? `<span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 3px;">${docAbbr} ${t.docNumber}</span>` : '';
                     div.innerHTML = `
                         <div class="item-info">
                             <span class="badge badge-income">${t.isDebt ? 'CON SALDO' : 'PAGADO'}</span>
                             <span style="font-size: 0.7rem; color: var(--secondary); font-weight: bold; margin-left: 5px;">${t.receiptNumber || 'Sin #'}</span>
-                            <h4>${t.customerName || 'Desconocido'} - ${valDisplay}</h4>
+                            <h4 style="margin-bottom: 2px;">${t.customerName || 'Desconocido'} - ${valDisplay}</h4>
+                            ${docInfo}
                             <p>${t.date} | ${t.category || t.detail}</p>
-                            ${t.isDebt ? `<p style="color: var(--warning)">Saldo Pendiente: $${t.balance.toLocaleString()}</p>` : ''}
+                            ${t.isDebt ? `<p style="color: var(--warning); margin-top: 5px;">Saldo Pendiente: $${t.balance.toLocaleString()}</p>` : ''}
                         </div>
                         <div class="item-action">
                             <button class="btn-primary" style="width: 40px; padding: 8px;" onclick="generateReceiptPDF(${t.id})" title="Descargar Recibo"><i data-lucide="download"></i></button>
