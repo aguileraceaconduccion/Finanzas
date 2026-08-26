@@ -1257,6 +1257,8 @@
                 const totalOtros = otrosArr.reduce((sum, o) => sum + (parseFloat(o.value) || 0), 0);
                 const totalCosts = sale.costs.pin + sale.costs.teoria + sale.costs.examenes + totalOtros;
                 const utilidad = sale.totalValue - totalCosts;
+                const margin = sale.totalValue > 0 ? ((utilidad / sale.totalValue) * 100) : 0;
+                const marginFormatted = (Number.isInteger(margin) ? margin : margin.toFixed(1)) + '%';
                 
                 const utilidadTab = document.getElementById('modal-tab-utilidad');
                 if (utilidadTab) {
@@ -1275,6 +1277,10 @@
                                 <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid var(--border); font-size: 1.3rem;">
                                     <span>Utilidad Neta:</span>
                                     <span style="font-weight: bold; color: ${utilidad >= 0 ? 'var(--primary)' : 'var(--danger)'};">$${utilidad.toLocaleString()}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 1.1rem;">
+                                    <span>% de Utilidad:</span>
+                                    <span style="font-weight: bold; color: ${margin >= 0 ? 'var(--primary)' : 'var(--danger)'};">${marginFormatted}</span>
                                 </div>
                             </div>
                         </div>
@@ -1503,6 +1509,8 @@
             }
             const totalCosts = (t.costs.pin || 0) + (t.costs.teoria || 0) + (t.costs.examenes || 0) + totalOtros;
             const utilidad = t.totalValue - totalCosts;
+            const margin = t.totalValue > 0 ? ((utilidad / t.totalValue) * 100) : 0;
+            const marginFormatted = (Number.isInteger(margin) ? margin : margin.toFixed(1)) + '%';
             
             html += `
                 <div id="modal-tab-utilidad" style="display: none;">
@@ -1520,6 +1528,10 @@
                             <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1px solid var(--border); font-size: 1.3rem;">
                                 <span>Utilidad Neta:</span>
                                 <span style="font-weight: bold; color: ${utilidad >= 0 ? 'var(--primary)' : 'var(--danger)'};">$${utilidad.toLocaleString()}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-top: 12px; font-size: 1.1rem;">
+                                <span>% de Utilidad:</span>
+                                <span style="font-weight: bold; color: ${margin >= 0 ? 'var(--primary)' : 'var(--danger)'};">${marginFormatted}</span>
                             </div>
                         </div>
                     </div>

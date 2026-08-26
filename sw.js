@@ -1,4 +1,4 @@
-const CACHE_NAME = "finanzas-pro-v5";
+const CACHE_NAME = "finanzas-pro-v6";
 const ASSETS = [
   "index.html",
   "manifest.json",
